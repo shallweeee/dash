@@ -8,5 +8,8 @@ services:
     command: ['python', 'app.py']
     ports:
       - '8050:8050'
+    environment:
+      - PYTHONPATH=/app
+      - DASH_DEBUG=true
     volumes:
       - .:/app
