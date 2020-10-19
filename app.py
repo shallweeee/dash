@@ -1,179 +1,254 @@
+import json
+
 import dash
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
 
 import dash_cytoscape as cyto
+from demos import dash_reusable_components as drc
 
 app = dash.Dash(__name__)
+server = app.server
 
+# ###################### DATA PREPROCESSING ######################
+# Load data
 with open('data/sample_network.txt', 'r') as f:
     network_data = f.read().split('\n')
 
+# We select the first 750 edges and associated nodes for an easier visualization
 edges = network_data[:750]
 nodes = set()
 
-following_node_di = {}  # user id -> list of users they are following
-following_edges_di = {}  # user id -> list of cy edges starting from user id
-
-followers_node_di = {}  # user id -> list of followers (cy_node format)
-followers_edges_di = {}  # user id -> list of cy edges ending at user id
-
+cy_edges = []
 cy_nodes = []
 
-for edge in edges:
-    if " " not in edge:
-        continue
-
-    source, target = edge.split(" ")
-
-    cy_edge = {'data': {'id': source+target, 'source': source, 'target': target}}
-    cy_target = {"data": {"id": target, "label": "User #" + str(target[-5:])}}
-    cy_source = {"data": {"id": source, "label": "User #" + str(source[-5:])}}
+for network_edge in edges:
+    source, target = network_edge.split(" ")
 
     if source not in nodes:
         nodes.add(source)
-        cy_nodes.append(cy_source)
+        cy_nodes.append({"data": {"id": source, "label": "User #" + source[-5:]}})
     if target not in nodes:
         nodes.add(target)
-        cy_nodes.append(cy_target)
+        cy_nodes.append({"data": {"id": target, "label": "User #" + target[-5:]}})
 
-    # Process dictionary of following
-    if not following_node_di.get(source):
-        following_node_di[source] = []
-    if not following_edges_di.get(source):
-        following_edges_di[source] = []
+    cy_edges.append({
+        'data': {
+            'source': source,
+            'target': target
+        }
+    })
 
-    following_node_di[source].append(cy_target)
-    following_edges_di[source].append(cy_edge)
+default_stylesheet = [
+    {
+        "selector": 'node',
+        'style': {
+            "opacity": 0.65,
+        }
+    },
+    {
+        "selector": 'edge',
+        'style': {
+            "curve-style": "bezier",
+            "opacity": 0.65
+        }
+    },
+]
 
-    # Process dictionary of followers
-    if not followers_node_di.get(target):
-        followers_node_di[target] = []
-    if not followers_edges_di.get(target):
-        followers_edges_di[target] = []
-
-    followers_node_di[target].append(cy_source)
-    followers_edges_di[target].append(cy_edge)
-
-genesis_node = cy_nodes[0]
-genesis_node['classes'] = "genesis"
-default_elements = [genesis_node]
+styles = {
+    'json-output': {
+        'overflow-y': 'scroll',
+        'height': 'calc(50% - 25px)',
+        'border': 'thin lightgrey solid'
+    },
+    'tab': {
+        'height': 'calc(98vh - 105px)'
+    }
+}
 
 app.layout = html.Div([
-    html.Div(className='ten columns', children=[
+    html.Div(className='eight columns', children=[
         cyto.Cytoscape(
             id='cytoscape',
-            elements=default_elements,
-            layout={'name': 'grid'},
+            elements=cy_edges + cy_nodes,
+            style={
+                'height': '95vh',
+                'width': '100%'
+            }
         )
     ]),
-    html.Div(className='two columns', children=[
-        html.H4('Layouts'),
-        dcc.Dropdown(
-            id='dropdown-layout',
-            options=[
-                {'label': 'random', 'value': 'random'},
-                {'label': 'grid', 'value': 'grid'},
-                {'label': 'circle', 'value': 'circle'},
-                {'label': 'concentric', 'value': 'concentric'},
-                {'label': 'breadthfirst', 'value': 'breadthfirst'},
-                {'label': 'cose', 'value': 'cose'},
-            ],
-            value='grid',
-            clearable=False,
-        ),
-        html.Br(),
-        html.H4('Expand'),
-        dcc.RadioItems(
-            id='radio-expand',
-            options=[
-                {'label': 'followers', 'value': 'followers'},
-                {'label': 'following', 'value': 'following'},
-            ],
-            value='followers',
-        ),
-    ]),
+
+    html.Div(className='four columns', children=[
+        dcc.Tabs(id='tabs', children=[
+            dcc.Tab(label='Control Panel', children=[
+                drc.NamedDropdown(
+                    name='Layout',
+                    id='dropdown-layout',
+                    options=drc.DropdownOptionsList(
+                        'random',
+                        'grid',
+                        'circle',
+                        'concentric',
+                        'breadthfirst',
+                        'cose'
+                    ),
+                    value='grid',
+                    clearable=False
+                ),
+
+                drc.NamedDropdown(
+                    name='Node Shape',
+                    id='dropdown-node-shape',
+                    value='ellipse',
+                    clearable=False,
+                    options=drc.DropdownOptionsList(
+                        'ellipse',
+                        'triangle',
+                        'rectangle',
+                        'diamond',
+                        'pentagon',
+                        'hexagon',
+                        'heptagon',
+                        'octagon',
+                        'star',
+                        'polygon',
+                    )
+                ),
+
+                drc.NamedInput(
+                    name='Followers Color',
+                    id='input-follower-color',
+                    type='text',
+                    value='#0074D9',
+                ),
+
+                drc.NamedInput(
+                    name='Following Color',
+                    id='input-following-color',
+                    type='text',
+                    value='#FF4136',
+                ),
+            ]),
+
+            dcc.Tab(label='JSON', children=[
+                html.Div(style=styles['tab'], children=[
+                    html.P('Node Object JSON:'),
+                    html.Pre(
+                        id='tap-node-json-output',
+                        style=styles['json-output']
+                    ),
+                    html.P('Edge Object JSON:'),
+                    html.Pre(
+                        id='tap-edge-json-output',
+                        style=styles['json-output']
+                    )
+                ])
+            ])
+        ]),
+    ])
 ])
+
+
+@app.callback(Output('tap-node-json-output', 'children'),
+              [Input('cytoscape', 'tapNode')])
+def display_tap_node(data):
+    return json.dumps(data, indent=2)
+
+
+@app.callback(Output('tap-edge-json-output', 'children'),
+              [Input('cytoscape', 'tapEdge')])
+def display_tap_edge(data):
+    return json.dumps(data, indent=2)
+
 
 @app.callback(Output('cytoscape', 'layout'),
               [Input('dropdown-layout', 'value')])
 def update_cytoscape_layout(layout):
     return {'name': layout}
 
-def unexpand(nodeData, elements, expansion_mode):
-    for element in elements:
-        if nodeData['id'] == element['data']['id']:
-            element['data']['expanded'] = False
-            break
 
-    if expansion_mode == 'followers':
-        exclude_nodes = followers_node_di.get(nodeData['id'])
-        exclude_edges = followers_edges_di.get(nodeData['id'])
-    elif expansion_mode == 'following':
-        exclude_nodes = following_node_di.get(nodeData['id'])
-        exclude_edges = following_edges_di.get(nodeData['id'])
+@app.callback(Output('cytoscape', 'stylesheet'),
+              [Input('cytoscape', 'mouseoverNodeData'),
+               Input('input-follower-color', 'value'),
+               Input('input-following-color', 'value'),
+               Input('dropdown-node-shape', 'value')],
+              [State('cytoscape', 'elements')])
+def generate_stylesheet(node, follower_color, following_color, node_shape, elements):
+    if not node:
+        return default_stylesheet
 
-    if exclude_edges:
-        exclude_ids = [node['data']['id'] for node in exclude_edges]
-        elements = list(filter(lambda e: not e['data']['id'] in exclude_ids, elements))
+    stylesheet = [{
+        "selector": 'node',
+        'style': {
+            'opacity': 0.3,
+            'shape': node_shape
+        }
+    }, {
+        'selector': 'edge',
+        'style': {
+            'opacity': 0.2,
+            "curve-style": "bezier",
+        }
+    }, {
+        "selector": 'node[id = "{}"]'.format(node['id']),
+        "style": {
+            'background-color': '#B10DC9',
+            "border-color": "purple",
+            "border-width": 2,
+            "border-opacity": 1,
+            "opacity": 1,
 
-    if exclude_nodes:
-        exclude_ids = [node['data']['id'] for node in exclude_nodes if node['data']['id'] != genesis_node['data']['id']]
+            "label": "data(label)",
+            "color": "#B10DC9",
+            "text-opacity": 1,
+            "font-size": 12,
+            'z-index': 9999
+        }
+    }]
 
-        for ex_id in exclude_ids:
-            index = next((i for i, node in enumerate(elements) if node['data']['id'] == ex_id), -1)
-            if index >= 0:
-                del elements[index]
+    for e in elements:
+        edge = e['data']
+        if edge.get('source') == node['id']:
+            stylesheet.append({
+                "selector": 'node[id = "{}"]'.format(edge['target']),
+                "style": {
+                    'background-color': following_color,
+                    'opacity': 0.9
+                }
+            })
+            stylesheet.append({
+                "selector": 'edge[id= "{}"]'.format(edge['id']),
+                "style": {
+                    "mid-target-arrow-color": following_color,
+                    "mid-target-arrow-shape": "vee",
+                    "line-color": following_color,
+                    'opacity': 0.9,
+                    'z-index': 5000
+                }
+            })
 
-    return elements
+        if edge.get('target') == node['id']:
+            stylesheet.append({
+                "selector": 'node[id = "{}"]'.format(edge['source']),
+                "style": {
+                    'background-color': follower_color,
+                    'opacity': 0.9,
+                    'z-index': 9999
+                }
+            })
+            stylesheet.append({
+                "selector": 'edge[id= "{}"]'.format(edge['id']),
+                "style": {
+                    "mid-target-arrow-color": follower_color,
+                    "mid-target-arrow-shape": "vee",
+                    "line-color": follower_color,
+                    'opacity': 1,
+                    'z-index': 5000
+                }
+            })
 
-@app.callback(Output('cytoscape', 'elements'),
-              [Input('cytoscape', 'tapNodeData')],
-              [State('cytoscape', 'elements'),
-               State('radio-expand', 'value')])
-def generate_elements(nodeData, elements, expansion_mode):
-    if not nodeData:
-        return default_elements
-
-    if nodeData.get('expanded'):
-        return unexpand(nodeData, elements, expansion_mode)
-
-    for element in elements:
-        if nodeData['id'] == element['data']['id']:
-            element['data']['expanded'] = True
-            break
-
-    if expansion_mode == 'followers':
-        followers_nodes = followers_node_di.get(nodeData['id'])
-        followers_edges = followers_edges_di.get(nodeData['id'])
-
-        if followers_nodes:
-            for node in followers_nodes:
-                node['classes'] = 'followerNode'
-            elements.extend(followers_nodes)
-
-        if followers_edges:
-            for follower_edge in followers_edges:
-                follower_edge['classes'] = 'followerEdge'
-            elements.extend(followers_edges)
-
-    elif expansion_mode == 'following':
-        following_nodes = following_node_di.get(nodeData['id'])
-        following_edges = following_edges_di.get(nodeData['id'])
-
-        if following_nodes:
-            for node in following_nodes:
-                if node['data']['id'] != genesis_node['data']['id']:
-                    node['classes'] = 'followingNode'
-                    elements.append(node)
-
-        if following_edges:
-            for follower_edge in following_edges:
-                follower_edge['classes'] = 'followingEdge'
-            elements.extend(following_edges)
-
-    return elements
+    return stylesheet
 
 
 if __name__ == '__main__':
