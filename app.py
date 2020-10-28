@@ -7,6 +7,37 @@ import dash_cytoscape as cyto
 
 app = dash.Dash(__name__)
 
+scale = 100
+import networkx as nx
+def update_position(elements):
+    i = 1
+    for e in elements:
+        if not e['data'].get('source'):
+            e['position'] = {'x': i * scale, 'y': i * scale}
+            i = i + 1
+    print(elements)
+    return elements
+
+def update_position_1(elements):
+    print('update_position {}'.format(len(elements)))
+    edges = [[e['data']['source'], e['data']['target']] for e in elements if e['data'].get('source')]
+    print('edges: {}'.format(len(edges)))
+    print(edges)
+    G = nx.Graph()
+    G.add_edges_from(edges)
+    positions = nx.spring_layout(G)
+    print('positions')
+    print(positions)
+    for name, pos in positions.items():
+        for e in elements:
+            if e['data']['id'] == name:
+                e['position'] = {'x': pos[0]*scale, 'y': pos[1]*scale}
+                break
+    print('elements')
+    print(elements)
+    print('')
+    return elements
+
 with open('data/sample_network.txt', 'r') as f:
     network_data = f.read().split('\n')
 
@@ -58,6 +89,7 @@ for edge in edges:
 
 genesis_node = cy_nodes[0]
 genesis_node['classes'] = "genesis"
+genesis_node['position'] = {'x': 100, 'y': 100}
 default_elements = [genesis_node]
 
 app.layout = html.Div([
@@ -65,7 +97,7 @@ app.layout = html.Div([
         cyto.Cytoscape(
             id='cytoscape',
             elements=default_elements,
-            layout={'name': 'grid'},
+            layout={'name': 'preset'},
         )
     ]),
     html.Div(className='two columns', children=[
@@ -126,7 +158,7 @@ def unexpand(nodeData, elements, expansion_mode):
             if index >= 0:
                 del elements[index]
 
-    return elements
+    return update_position(elements)
 
 @app.callback(Output('cytoscape', 'elements'),
               [Input('cytoscape', 'tapNodeData')],
@@ -173,7 +205,7 @@ def generate_elements(nodeData, elements, expansion_mode):
                 follower_edge['classes'] = 'followingEdge'
             elements.extend(following_edges)
 
-    return elements
+    return update_position(elements)
 
 
 if __name__ == '__main__':
