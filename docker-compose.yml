@@ -9,6 +9,7 @@ services:
     ports:
       - '8050:8050'
     environment:
+      - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
       - DASH_DEBUG=true
     volumes:
