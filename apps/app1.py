@@ -7,6 +7,7 @@ from dash.exceptions import PreventUpdate
 from app import app
 
 products = ('세탁기', '냉장고', 'TV', '에어컨', '제습기')
+
 layout = html.Div([
 #    html.Button('Button 1', id='세탁기'),
 #    html.Button('Button 2', id='냉장고'),
@@ -22,7 +23,9 @@ layout = html.Div([
 #        children=[html.Img(src=app.get_asset_url('logo.png')),
 #            html.H3('세탁기')]),
 #    #dcc.Link(id='hidden_link', href='/page-2', style={'display': 'none'}),
-    html.Div([html.Button(p, id=p) for p in products]),
+    html.Div([html.Button(id=p,
+        children=[html.Img(src=app.get_asset_url('logo.png')),
+            html.P(p)]) for p in products]),
 
     html.Div([
         html.Button('Load image', id='load-button'),
