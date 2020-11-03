@@ -40,11 +40,10 @@ layout = html.Div([
 #               Input('TV', 'n_clicks'),
 #               Input('에어컨', 'n_clicks'),
 #               Input('제습기', 'n_clicks')],
-              [Input(p, 'n_clicks') for p in products],
-              [State('local', 'data')])
+              [Input(p, 'n_clicks') for p in products])
+#              [State('local', 'data')])
 def displayClick(*args):
-    *btns, data = args
-    if not any(btns):
+    if not any(args):
         raise PreventUpdate
 
     print('')
