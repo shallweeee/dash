@@ -2,6 +2,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 
 from app import app
 from apps import app1, app2
@@ -49,31 +50,30 @@ trans = {
     'freezer': '냉장고',
 }
 
-@app.callback([Output('page-content', 'children'), Output('local', 'data')],
+@app.callback(Output('page-content', 'children'),
               [Input('url', 'pathname')],
               [State('local', 'data')]
 )
 def render_page_content(pathname, data):
-    print(f'pathname {pathname}')
-    data = data or {}
+    print(f'pathname {pathname} data {data}')
+
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'url' not in changed_id:
+        raise PreventUpdate 
+
 
     if pathname in ['/', '/page-1']:
-        return app1.layout, data
+        return app1.layout
     if pathname == '/page-2':
-        return app2.layout, data
+        return app2.get_layout(data['product'])
     if pathname == '/page-3':
-        return html.P('Oh cool, this is page 3!'), data
-    if '/relation' in pathname:
-        cols = pathname.split('/')
-        if len(cols) == 3:
-            data['product'] = trans.get(cols[2])
-        return app2.get_layout(data['product']), data
+        return html.P('Oh cool, this is page 3!')
     # If the user tries to reach a different page, return a 404 message
     return [
             html.H1('404: Not found', className='text-danger'),
             html.Hr(),
             html.P(f'The pathname {pathname} was not recognised...'),
-        ], data
+        ]
 
 
 if __name__ == '__main__':
