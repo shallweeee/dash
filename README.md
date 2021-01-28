@@ -19,7 +19,8 @@ Ctrl + Shft + D > Python: Dash > Start Debugging
 ```
 
 
-[VSCODE 단축키](https://demun.github.io/vscode-tutorial/shortcuts/)
+[VSCODE 단축키](https://demun.github.io/vscode-tutorial/shortcuts/)   
+[VSCODE 단축키 PDF](https://code.visualstudio.com/shortcuts/keyboard-shortcuts-windows.pdf)
 
 |단축키|기능
 |---|---
@@ -28,3 +29,4 @@ Ctrl + Shft + D > Python: Dash > Start Debugging
 |`Ctrl + /`| 라인 주석 토글
 |`Ctrl + Shift + P`| 모든 명령
 |`Tab, Shft + Tab`| 인덴트
+|`Alt + Click`|멀티 커서
